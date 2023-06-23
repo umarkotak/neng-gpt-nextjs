@@ -36,6 +36,8 @@ const msgCopy = {
   "waiting_talk": "Nunggu neng lagi ngomong"
 }
 
+var synth
+
 let voices = []
 if (typeof(window) !== 'undefined') {
   synth = window.speechSynthesis
