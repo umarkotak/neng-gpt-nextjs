@@ -29,8 +29,6 @@ Harap diingat bahwa ini adalah gambaran umum tentang proses pembuatan mobil. Set
 var speakButton
 var speakButton2
 
-const synth = window.speechSynthesis
-
 const msgCopy = {
   "idle": "Sedang bengong . . .",
   "listening_question": "Silakan bicara",
@@ -40,6 +38,7 @@ const msgCopy = {
 
 let voices = []
 if (typeof(window) !== 'undefined') {
+  synth = window.speechSynthesis
   synth.onvoiceschanged = () => {
     voices = synth.getVoices()
   }
