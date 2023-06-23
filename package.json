@@ -16,6 +16,15 @@
     "react-dom": "18.2.0",
     "react-speech-kit": "^3.0.1",
     "react-speech-recognition": "^3.10.0",
+    "sbd": "^1.0.19",
+    "sentence-splitter": "^4.2.1",
     "tailwindcss": "3.3.2"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-loader": "^9.1.2",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1"
   }
 }
