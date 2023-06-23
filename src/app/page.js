@@ -58,7 +58,14 @@ export default function Home() {
   const [myQuestion, setMyQuestion] = useState("")
   const [chatGptAnswer, setChatGptAnswer] = useState("")
   const [subtitle, setSubtitle] = useState("")
-  const [chatGptKey, setChatGptKey] = useState(localStorage.getItem("chatGptKey") || "")
+  const [chatGptKey, setChatGptKey] = useState(initChatGptKey())
+
+  function initChatGptKey() {
+    if (typeof(localStorage) !== "undefined") {
+      return localStorage.getItem("chatGptKey") ? localStorage.getItem("chatGptKey") : ""
+    }
+    return ""
+  }
 
   var latestChatGptAnswer = ""
 
