@@ -3,12 +3,11 @@
 import 'regenerator-runtime/runtime'
 import { useState, useEffect, useRef } from 'react'
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition'
-import { useSpeechSynthesis } from 'react-speech-kit'
-var tokenizer = require('sbd')
+const tokenizer = require('sbd')
 
 const chatGptApi = 'https://api.openai.com/v1/chat/completions'
 
-var sampleAnswer = `Membuat mobil adalah sebuah proses yang kompleks dan membutuhkan pengetahuan dan keterampilan teknik yang mendalam. Biasanya, proses ini dilakukan oleh produsen mobil dengan peralatan dan fasilitas produksi yang khusus. Namun, di bawah ini adalah gambaran umum tentang tahapan-tahapan yang terlibat dalam pembuatan mobil:
+const sampleAnswer = `Membuat mobil adalah sebuah proses yang kompleks dan membutuhkan pengetahuan dan keterampilan teknik yang mendalam. Biasanya, proses ini dilakukan oleh produsen mobil dengan peralatan dan fasilitas produksi yang khusus. Namun, di bawah ini adalah gambaran umum tentang tahapan-tahapan yang terlibat dalam pembuatan mobil:
 
 Perencanaan dan Desain: Tahap awal dalam pembuatan mobil adalah perencanaan dan desain. Ini melibatkan tim insinyur dan desainer yang membuat sketsa, merancang bagian-bagian mobil, dan mengembangkan model 3D menggunakan perangkat lunak desain komputer.
 
@@ -26,30 +25,34 @@ Distribusi dan Penjualan: Setelah mobil selesai diproduksi, mereka didistribusik
 
 Harap diingat bahwa ini adalah gambaran umum tentang proses pembuatan mobil. Setiap produsen mobil mungkin memiliki proses yang sedikit berbeda tergantung pada teknologi dan metode produksi yang mereka gunakan.`
 
-const msgCopy = {
-  "idle": "Sedang bengong . . .",
-  "listening_question": "Silakan bicara",
-  "waiting_chatgpt": "Nunggu neng gpt mikir . . .",
-  "waiting_talk": "Nunggu neng lagi ngomong"
-}
-const imgMap = {
-  "idle": "/images/idle.gif",
-  "listening_question": "/images/listen.gif",
-  "waiting_chatgpt": "/images/thinking.gif",
-  "waiting_talk": "/images/talk.gif"
+const stateObjMap = {
+  "idle": {
+    "gif_url": "/images/idle.gif",
+    "state_copy": "Sedang bengong . . .",
+    "main_button_copy": "Bicara!",
+    "main_button_disabled": false,
+  },
+  "listening_question": {
+    "gif_url": "/images/listen.gif",
+    "state_copy": "Silakan bicara",
+    "main_button_copy": "Sudah!",
+    "main_button_disabled": false,
+  },
+  "waiting_chatgpt": {
+    "gif_url": "/images/thinking.gif",
+    "state_copy": "Nunggu neng gpt mikir . . .",
+    "main_button_copy": "Sabar!",
+    "main_button_disabled": true,
+  },
+  "waiting_talk": {
+    "gif_url": "/images/talk.gif",
+    "state_copy": "Nunggu neng lagi ngomong",
+    "main_button_copy": "Cukuppp!",
+    "main_button_disabled": false,
+  },
 }
 
-var synth
-
-let voices = []
-if (typeof(window) !== 'undefined') {
-  synth = window.speechSynthesis
-  synth.onvoiceschanged = () => {
-    voices = synth.getVoices()
-  }
-}
-
-var optional_options = {
+const sentenceSplitterOpt = {
   "newline_boundaries" : true,
   "html_boundaries"    : false,
   "sanitize"           : true,
@@ -58,95 +61,56 @@ var optional_options = {
   "abbreviations"      : null
 }
 
-let messageHistory = [
-  { 'role': 'system', 'content': 'saya sedang bersantai dan ingin berbicara dengan ringan' },
-]
-
+var synth
 var apiLock = false
+let voices = []
+
+if (typeof(window) !== 'undefined') {
+  synth = window.speechSynthesis
+  synth.onvoiceschanged = () => {
+    voices = synth.getVoices()
+  }
+}
+
+var messageHistory = [
+  { 'role': 'system', 'content': 'saya sedang bersantai dan ingin berbicara dengan ringan, anggap saya sebagai anak anak dan kamu dapat menjawab pertanyaan saya dengan singkat. cobalah sebisa mungking jawab pertanyaan saya ketika apa yang saya katakan kurang jelas.' },
+]
 
 export default function Home() {
   const [currentState, setCurrentState] = useState("idle") // Enum: [idle, listening_question, waiting_chatgpt, waiting_talk]
   const [myQuestion, setMyQuestion] = useState("")
   const [chatGptAnswer, setChatGptAnswer] = useState("")
-  const [subtitle, setSubtitle] = useState("")
   const [chatGptKey, setChatGptKey] = useState("")
-  const [browserSupp, setBrowserSupp] = useState("")
 
   useEffect(() => {
     if (typeof(window) !== 'undefined') {
-      setChatGptKey(initChatGptKey())
-    }
-    if (!browserSupportsSpeechRecognition) {
-      return(<>maaf, neng-gpt ga bisa jalan di browser kamu 🙇🏻‍♀️</>)
+      clientSideInit()
     }
   }, [])
 
-  function initChatGptKey() {
+  function clientSideInit() {
     if (typeof(localStorage) !== "undefined") {
-      return localStorage.getItem("chatGptKey") ? localStorage.getItem("chatGptKey") : ""
+      setChatGptKey(localStorage.getItem("chatGptKey") ? localStorage.getItem("chatGptKey") : "")
+    } else {
+      setChatGptKey("")
     }
-    return ""
   }
-
-  var latestChatGptAnswer = ""
 
   // SPEECH TO TEXT
   const commands = [
     {
       command: ':content (*)',
       callback: (content, c2) => {
-        console.log("MASUK:", content)
         handleMyQuestionCallback(`${content} ${c2}`)
       },
       matchInterim: false,
     },
   ]
-  const {
-    transcript,
-    listening,
-    resetTranscript,
-    browserSupportsSpeechRecognition
-  } = useSpeechRecognition({commands})
-
-  // TEXT TO SPEECH
-  const onEnd = () => {
-    console.log("SPEAK ENDED")
-  }
-  const { speak, voices } = useSpeechSynthesis({
-    onEnd,
-  })
-
-  useEffect(() => {
-    nativeSpeak(chatGptAnswer)
-  }, [chatGptAnswer])
+  const {transcript, listening, resetTranscript, browserSupportsSpeechRecognition} = useSpeechRecognition({commands})
 
   function handleMyQuestionCallback(content) {
-    var constructedContent = `${content} secara singkat`
-    callChatGptApi(constructedContent)
     setMyQuestion(content)
-  }
-
-  function nativeSpeak(text) {
-    if (text === "") { return }
-    setCurrentState("waiting_talk")
-    synth.cancel()
-
-    var sentences = tokenizer.sentences(text, optional_options)
-
-    sentences.forEach((sentence) => {
-      iterateArrayInBatches(`${sentence}`.split(' '), 15, function(batch) {
-        var joinedText = batch.join(" ")
-        setSubtitle(joinedText)
-        let speech = new SpeechSynthesisUtterance()
-        speech.voice = voices[56]
-        speech.lang = "id"
-        speech.text = joinedText
-        speech.rate = 1.2
-        speech.pitch = 1
-        speech.volume = 1
-        synth.speak(speech)
-      })
-    })
+    callChatGptApi(content)
   }
 
   async function callChatGptApi(content) {
@@ -187,16 +151,59 @@ export default function Home() {
         console.log("CHAT GPT RESPONSE", data)
         const reply = data.choices[0].message.content
         setChatGptAnswer(reply)
-        latestChatGptAnswer = reply
       } else {
         const data = await response.json()
-        console.error(data)
+        console.error('Data:', data)
       }
     } catch (error) {
       console.error('Error:', error)
     }
 
     apiLock = false
+  }
+
+  useEffect(() => {
+    nativeSpeak(chatGptAnswer)
+  }, [chatGptAnswer])
+
+  function nativeSpeak(text) {
+    if (text === "") { return }
+    setCurrentState("waiting_talk")
+    synth.cancel()
+
+    var sentences = tokenizer.sentences(text, sentenceSplitterOpt)
+
+    sentences.forEach((sentence) => {
+      iterateArrayInBatches(`${sentence}`.split(' '), 26, function(batch) {
+        var joinedText = batch.join(" ")
+        let speech = new SpeechSynthesisUtterance()
+        speech.voice = voices[56]
+        speech.lang = "id"
+        speech.text = joinedText
+        speech.rate = 1.2
+        speech.pitch = 1
+        speech.volume = 1
+        if (batch.size < 26) {
+          speech.onend = () => {setCurrentState("idle")}
+        }
+        synth.speak(speech)
+      })
+    })
+  }
+
+  function handleMainButtonClick() {
+    if (currentState === "idle") {
+      setCurrentState("listening_question")
+      synth.cancel()
+      SpeechRecognition.startListening({ language: 'id' })
+    } else if (currentState === "listening_question") {
+      SpeechRecognition.stopListening()
+    } else if (currentState === "waiting_chatgpt") {
+
+    } else if (currentState === "waiting_talk") {
+      setCurrentState("idle")
+      synth.cancel()
+    }
   }
 
   return (
@@ -210,59 +217,49 @@ export default function Home() {
             </div>
 
             <div className="bg-white shadow-md rounded-lg p-4 w-full mb-4">
-              <p>🙎🏼‍♀️ {msgCopy[currentState]}</p>
-              <img src={imgMap[currentState]} alt="state"></img>
+              <p>🙎🏼‍♀️ {stateObjMap[currentState].state_copy}</p>
+              <img
+                src={stateObjMap[currentState].gif_url} alt="state"
+                className='h-[175px] w-[330px] rounded-lg shadow-md'
+              />
               <p>{listening ? 'silakan berbicara' : ''}</p>
             </div>
 
             <div className='flex-col mb-4'>
               <div className='flex'>
                 <button
-                  className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
-                  onClick={()=>{
-                    setCurrentState('listening_question')
-                    synth.cancel()
-                    SpeechRecognition.startListening({ language: 'id' })
-                  }}
-                >Bicara!</button>
-                {/* <button
-                  className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
-                  onClick={()=>{synth.cancel()}}
-                >Diem!</button> */}
+                  className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1 disabled:bg-gray-500'
+                  onClick={()=>handleMainButtonClick()}
+                  disabled={stateObjMap[currentState].main_button_disabled}
+                >{stateObjMap[currentState].main_button_copy}</button>
               </div>
               <div>
-                <small className='text-xs'>ucapkan dengan format: "neng [pertanyaan mu]"</small>
-              </div>
-              <div>
-                <small className='text-xs'><b>contoh:</b> "neng bagaimana alam semesta terbentuk"</small>
+                <small className='text-xs'>silakan bertanya apa saja ke neng gpt</small>
               </div>
             </div>
 
-            <div className='flex-col mb-4'>
+            <hr className='my-2' />
+
+            <div className='flex-col mb-4 text-start'>
               <p>Pertanyaan</p>
               <p className='text-xs'>{transcript}</p>
               <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={myQuestion} rows="2" readOnly></textarea>
             </div>
 
-            {/* <div className='flex-col mb-4'>
-              <p>Subtitle</p>
-              <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={subtitle} rows="2" readOnly></textarea>
-            </div> */}
-
-            <div className='flex-col mb-4'>
+            <div className='flex-col mb-4 text-start'>
               <p>Jawaban</p>
               <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={chatGptAnswer} rows="4" readOnly></textarea>
             </div>
 
-            <hr />
+            <hr className='my-2' />
 
             <div className='flex-col mb-4'>
               <p>Config</p>
-              <pre className='bg-white w-full border rounded text-sm'>
-                cgpt: {chatGptKey ? "ready" : "not-ready"}
+              <pre className='bg-white w-full border rounded-lg text-sm text-start p-1 mb-1'>
+                chat gpt key: {chatGptKey ? "ready" : "not-ready"}
               </pre>
               <input
-                type="text" className="p-1 form-control w-full rounded border shadow-md" onChange={(e)=>setChatGptKey(e.target.value)}
+                type="text" className="p-1 form-control w-full rounded-lg border shadow-md mb-1" onChange={(e)=>setChatGptKey(e.target.value)}
                 placeholder='your chat gpt api key here'
               />
               <button
