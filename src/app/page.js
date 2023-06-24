@@ -70,10 +70,14 @@ export default function Home() {
   const [chatGptAnswer, setChatGptAnswer] = useState("")
   const [subtitle, setSubtitle] = useState("")
   const [chatGptKey, setChatGptKey] = useState("")
+  const [browserSupp, setBrowserSupp] = useState("")
 
   useEffect(() => {
     if (typeof(window) !== 'undefined') {
       setChatGptKey(initChatGptKey())
+    }
+    if (!browserSupportsSpeechRecognition) {
+      return(<>maaf, neng-gpt ga bisa jalan di browser kamu 🙇🏻‍♀️</>)
     }
   }, [])
 
@@ -221,7 +225,6 @@ export default function Home() {
                     SpeechRecognition.startListening({ language: 'id' })
                   }}
                 >Bicara!</button>
-                {browserSupportsSpeechRecognition ? nil : "maaf, neng-gpt ga bisa jalan di browser kamu 🙇🏻‍♀️"}
                 {/* <button
                   className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
                   onClick={()=>{synth.cancel()}}
