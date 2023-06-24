@@ -26,9 +26,6 @@ Distribusi dan Penjualan: Setelah mobil selesai diproduksi, mereka didistribusik
 
 Harap diingat bahwa ini adalah gambaran umum tentang proses pembuatan mobil. Setiap produsen mobil mungkin memiliki proses yang sedikit berbeda tergantung pada teknologi dan metode produksi yang mereka gunakan.`
 
-var speakButton
-var speakButton2
-
 const msgCopy = {
   "idle": "Sedang bengong . . .",
   "listening_question": "Silakan bicara",
@@ -55,12 +52,20 @@ var optional_options = {
   "abbreviations"      : null
 }
 
+var iteration = 1
+
 export default function Home() {
   const [currentState, setCurrentState] = useState("idle") // Enum: [idle, listening_question, waiting_chatgpt, waiting_talk]
   const [myQuestion, setMyQuestion] = useState("")
   const [chatGptAnswer, setChatGptAnswer] = useState("")
   const [subtitle, setSubtitle] = useState("")
-  const [chatGptKey, setChatGptKey] = useState(initChatGptKey())
+  const [chatGptKey, setChatGptKey] = useState("")
+
+  useEffect(() => {
+    if (typeof(window) !== 'undefined') {
+      setChatGptKey(initChatGptKey())
+    }
+  }, [])
 
   function initChatGptKey() {
     if (typeof(localStorage) !== "undefined") {
@@ -74,7 +79,7 @@ export default function Home() {
   // SPEECH TO TEXT
   const commands = [
     {
-      command: 'neng *',
+      command: '(neng) *',
       callback: (content) => handleMyQuestionCallback(content),
     },
   ]
@@ -124,9 +129,6 @@ export default function Home() {
         synth.speak(speech)
       })
     })
-
-
-    console.log("sudah")
   }
 
   async function callChatGptApi(content) {
@@ -149,8 +151,9 @@ export default function Home() {
       ]
     })
 
-    // setChatGptAnswer(sampleAnswer)
-    // return
+    setChatGptAnswer(`${sampleAnswer} ${iteration}`)
+    iteration = iteration + 1
+    return
 
     try {
       setCurrentState("waiting_chatgpt")
@@ -190,7 +193,9 @@ export default function Home() {
               <div className='flex'>
                 <button
                   className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
-                  onClick={()=>{SpeechRecognition.startListening({ language: 'id' })}}
+                  onClick={()=>{
+                    SpeechRecognition.startListening({ language: 'id' })
+                  }}
                 >Bicara!</button>
                 <button
                   className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
@@ -207,16 +212,16 @@ export default function Home() {
 
             <div className='flex-col mb-4'>
               <p>Pertanyaan</p>
-              <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={myQuestion} rows="2" readOnly></textarea>
+              <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={transcript} rows="2" readOnly></textarea>
             </div>
 
-            <div className='flex-col mb-4'>
+            {/* <div className='flex-col mb-4'>
               <p>Subtitle</p>
               <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={subtitle} rows="2" readOnly></textarea>
-            </div>
+            </div> */}
 
             <div className='flex-col mb-4'>
-              <p>Jawaban Penuh</p>
+              <p>Jawaban</p>
               <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={chatGptAnswer} rows="4" readOnly></textarea>
             </div>
 
