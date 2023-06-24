@@ -204,6 +204,7 @@ export default function Home() {
       SpeechRecognition.startListening({ language: 'id' })
     } else if (currentState === "listening_question") {
       SpeechRecognition.stopListening()
+      setMyQuestion(transcript)
     } else if (currentState === "waiting_chatgpt") {
 
     } else if (currentState === "waiting_talk") {
