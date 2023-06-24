@@ -218,9 +218,10 @@ export default function Home() {
                   onClick={()=>{
                     setCurrentState('listening_question')
                     synth.cancel()
-                    SpeechRecognition.startListening({ language: 'id' });
+                    SpeechRecognition.startListening({ language: 'id' })
                   }}
                 >Bicara!</button>
+                {browserSupportsSpeechRecognition ? nil : "maaf, neng-gpt ga bisa jalan di browser kamu 🙇🏻‍♀️"}
                 {/* <button
                   className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
                   onClick={()=>{synth.cancel()}}
