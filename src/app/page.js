@@ -52,7 +52,11 @@ var optional_options = {
   "abbreviations"      : null
 }
 
-var iteration = 1
+let messageHistory = [
+  { 'role': 'system', 'content': 'saya sedang bersantai dan ingin berbicara dengan ringan' },
+]
+
+var apiLock = false
 
 export default function Home() {
   const [currentState, setCurrentState] = useState("idle") // Enum: [idle, listening_question, waiting_chatgpt, waiting_talk]
@@ -79,8 +83,12 @@ export default function Home() {
   // SPEECH TO TEXT
   const commands = [
     {
-      command: '(neng) *',
-      callback: (content) => handleMyQuestionCallback(content),
+      command: ':content (*)',
+      callback: (content, c2) => {
+        console.log("MASUK:", content)
+        handleMyQuestionCallback(`${content} ${c2}`)
+      },
+      matchInterim: false,
     },
   ]
   const {
@@ -132,28 +140,30 @@ export default function Home() {
   }
 
   async function callChatGptApi(content) {
+    if (apiLock) {
+      console.log('locked')
+      return
+    }
+    apiLock = true
+
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${chatGptKey}`
     }
 
+    var contentObj = { 'role': 'user', 'content': content }
+    messageHistory.push(contentObj)
+
     const body = JSON.stringify({
       'model': 'gpt-3.5-turbo',
-      'messages': [
-        {
-          'role': 'system',
-          'content': 'You are'
-        },
-        {
-          'role': 'user',
-          'content': content
-        }
-      ]
+      'messages': messageHistory,
     })
+    console.log(body)
 
-    setChatGptAnswer(`${sampleAnswer} ${iteration}`)
-    iteration = iteration + 1
-    return
+    // await delay(1000)
+    // setChatGptAnswer(`${sampleAnswer} ${Date.now()}`)
+    // apiLock = false
+    // return
 
     try {
       setCurrentState("waiting_chatgpt")
@@ -168,10 +178,15 @@ export default function Home() {
         const reply = data.choices[0].message.content
         setChatGptAnswer(reply)
         latestChatGptAnswer = reply
+      } else {
+        const data = await response.json()
+        console.error(data)
       }
     } catch (error) {
       console.error('Error:', error)
     }
+
+    apiLock = false
   }
 
   return (
@@ -212,7 +227,8 @@ export default function Home() {
 
             <div className='flex-col mb-4'>
               <p>Pertanyaan</p>
-              <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={transcript} rows="2" readOnly></textarea>
+              <p className='text-xs'>{transcript}</p>
+              <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={myQuestion} rows="2" readOnly></textarea>
             </div>
 
             {/* <div className='flex-col mb-4'>
@@ -273,5 +289,9 @@ export default function Home() {
       const batch = array.slice(i, i + batchSize);
       callback(batch);
     }
+  }
+
+  function delay(time) {
+    return new Promise(resolve => setTimeout(resolve, time));
   }
 }
