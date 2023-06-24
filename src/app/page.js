@@ -80,7 +80,7 @@ export default function Home() {
   const [currentState, setCurrentState] = useState("idle") // Enum: [idle, listening_question, waiting_chatgpt, waiting_talk]
   const [myQuestion, setMyQuestion] = useState("")
   const [chatGptAnswer, setChatGptAnswer] = useState("")
-  const [chatGptKey, setChatGptKey] = useState("")
+  const [chatGptKey, setChatGptKey] = useState("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")
 
   useEffect(() => {
     if (typeof(window) !== 'undefined') {
