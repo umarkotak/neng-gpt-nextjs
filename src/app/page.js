@@ -32,6 +32,12 @@ const msgCopy = {
   "waiting_chatgpt": "Nunggu neng gpt mikir . . .",
   "waiting_talk": "Nunggu neng lagi ngomong"
 }
+const imgMap = {
+  "idle": "/images/idle.gif",
+  "listening_question": "/images/listen.gif",
+  "waiting_chatgpt": "/images/thinking.gif",
+  "waiting_talk": "/images/talk.gif"
+}
 
 var synth
 
@@ -201,6 +207,7 @@ export default function Home() {
 
             <div className="bg-white shadow-md rounded-lg p-4 w-full mb-4">
               <p>🙎🏼‍♀️ {msgCopy[currentState]}</p>
+              <img src={imgMap[currentState]} alt="state"></img>
               <p>{listening ? 'silakan berbicara' : ''}</p>
             </div>
 
@@ -209,13 +216,15 @@ export default function Home() {
                 <button
                   className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
                   onClick={()=>{
-                    SpeechRecognition.startListening({ language: 'id' })
+                    setCurrentState('listening_question')
+                    synth.cancel()
+                    SpeechRecognition.startListening({ language: 'id' });
                   }}
                 >Bicara!</button>
-                <button
+                {/* <button
                   className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1'
                   onClick={()=>{synth.cancel()}}
-                >Diem!</button>
+                >Diem!</button> */}
               </div>
               <div>
                 <small className='text-xs'>ucapkan dengan format: "neng [pertanyaan mu]"</small>
