@@ -75,14 +75,17 @@ if (typeof(window) !== 'undefined') {
 }
 
 var messageHistory = [
-  { 'role': 'system', 'content': 'saya sedang bersantai dan ingin berbicara dengan ringan, anggap saya sebagai anak anak dan kamu dapat menjawab pertanyaan saya dengan singkat. cobalah sebisa mungking jawab pertanyaan saya ketika apa yang saya katakan kurang jelas.' },
+  // { 'role': 'system', 'content': 'saya sedang bersantai dan ingin berbicara dengan ringan, anggap saya sebagai anak anak dan kamu dapat menjawab pertanyaan saya dengan singkat. cobalah sebisa mungking jawab pertanyaan saya ketika apa yang saya katakan kurang jelas.' },
 ]
+
+var chatLogsArr = []
 
 export default function Home() {
   const [currentState, setCurrentState] = useState("idle") // Enum: [idle, listening_question, waiting_chatgpt, waiting_talk]
   const [myQuestion, setMyQuestion] = useState("")
   const [chatGptAnswer, setChatGptAnswer] = useState("")
   const [chatGptKey, setChatGptKey] = useState(Buffer.from("c2stb3R6RkVxTWRlN3JTODBZUXg2SHZUM0JsYmtGSkZURFJHa2g2Z29QZURlN0g1eXBX", 'base64'))
+  const [chatLogs, setChatLogs] = useState(chatLogsArr)
 
   useEffect(() => {
     if (typeof(window) !== 'undefined') {
@@ -104,6 +107,7 @@ export default function Home() {
       command: ':content (*)',
       callback: (content, c2) => {
         handleMyQuestionCallback(`${content} ${c2}`)
+        resetTranscript()
       },
       matchInterim: false,
     },
@@ -113,6 +117,14 @@ export default function Home() {
   function handleMyQuestionCallback(content) {
     setMyQuestion(content)
     callChatGptApi(content)
+    chatLogsArr = [
+      {
+        "type": "question",
+        "message": content,
+        "ts": new Date()
+      }, ...chatLogsArr,
+    ]
+    setChatLogs(chatLogsArr)
   }
 
   async function callChatGptApi(content) {
@@ -154,6 +166,14 @@ export default function Home() {
         console.log("CHAT GPT RESPONSE", data)
         const reply = data.choices[0].message.content
         setChatGptAnswer(reply)
+        chatLogsArr = [
+          {
+            "type": "answer",
+            "message": reply,
+            "ts": new Date()
+          }, ...chatLogsArr,
+        ]
+        setChatLogs(chatLogsArr)
       } else {
         const data = await response.json()
         console.error('Data:', data)
@@ -178,7 +198,7 @@ export default function Home() {
 
     var sentences = tokenizer.sentences(text, sentenceSplitterOpt)
 
-    sentences.forEach((sentence) => {
+    sentences.forEach((sentence, idx) => {
       iterateArrayInBatches(`${sentence}`.split(' '), 26, function(batch) {
         var joinedText = batch.join(" ")
         let speech = new SpeechSynthesisUtterance()
@@ -189,7 +209,7 @@ export default function Home() {
         speech.rate = 1.2
         speech.pitch = 1.2
         speech.volume = 1
-        if (batch.size < 26) {
+        if (idx >= sentences.length-1) {
           speech.onend = () => {setCurrentState("idle")}
         }
         synth.speak(speech)
@@ -205,6 +225,18 @@ export default function Home() {
     } else if (currentState === "listening_question") {
       SpeechRecognition.stopListening()
       setMyQuestion(transcript)
+      if (transcript === "") {
+        setCurrentState("idle")
+        return
+      }
+      chatLogsArr = [
+        {
+          "type": "question",
+          "message": transcript,
+          "ts": new Date()
+        }, ...chatLogsArr,
+      ]
+      setChatLogs(chatLogsArr)
     } else if (currentState === "waiting_chatgpt") {
 
     } else if (currentState === "waiting_talk") {
@@ -215,8 +247,10 @@ export default function Home() {
 
   return (
     <div className='bg-gray-100 w-full'>
+      <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></link>
+
       <div className="flex items-center justify-center">
-        <div className="h-screen flex flex-col items-center justify-start pt-4">
+        <div className="min-h-screen flex flex-col items-center justify-start pt-4">
           <div className='container mx-auto px-4 text-center min-w-[360px] max-w-[460px]'>
             <div className="bg-white shadow-md rounded-lg p-4 mb-4">
               <h1 className="text-4xl font-bold">Neng-GPT</h1>
@@ -235,7 +269,7 @@ export default function Home() {
             <div className='flex-col mb-4'>
               <div className='flex'>
                 <button
-                  className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-1 disabled:bg-gray-500'
+                  className='shadow-md w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 h-14 text-xl rounded-full mr-1 disabled:bg-gray-500'
                   onClick={()=>handleMainButtonClick()}
                   disabled={stateObjMap[currentState].main_button_disabled}
                 >{stateObjMap[currentState].main_button_copy}</button>
@@ -247,19 +281,58 @@ export default function Home() {
 
             <hr className='my-2' />
 
-            <div className='flex-col mb-4 text-start'>
+            {/* <div className='flex-col mb-4 text-start'>
               <p>Pertanyaan</p>
               <p className='text-xs'>{transcript}</p>
               <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={myQuestion} rows="2" readOnly></textarea>
-            </div>
+            </div> */}
 
-            <div className='flex-col mb-4 text-start'>
+            {/* <div className='flex-col mb-4 text-start'>
               <p>Jawaban</p>
-              {/* <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={chatGptAnswer} rows="4" readOnly></textarea> */}
+              <textarea className="shadow-md block p-2.5 w-full text-sm text-gray-900 bg-gray-50 border rounded-lg" value={chatGptAnswer} rows="4" readOnly></textarea>
               <ReactMarkdown
                 children={chatGptAnswer} remarkPlugins={[remarkGfm]}
                 className='h-[120px] bg-white rounded-lg border shadow-md p-1 overflow-auto text-xs'
               />
+            </div> */}
+
+            <div>
+              {transcript === "" || transcript === null ? null : <>
+                <div className="flex items-end mb-4 justify-end">
+                    <div className="mr-2">
+                        <p className="bg-white text-sm text-start p-2 rounded-lg inline-block">{transcript}</p>
+                        <p className="text-xs text-end text-gray-400 mt-1">...</p>
+                    </div>
+                    <div className="bg-gray-500 rounded-full p-2">
+                        <i className="fas fa-user text-white w-6 h-4"></i>
+                    </div>
+                </div>
+              </>}
+              {chatLogs.map((val, idx) => (
+                <div key={"chat-log-"+idx}>
+                  {val.type === "answer" ? <>
+                    <div className="flex items-start mb-4">
+                        <div className="bg-green-500 rounded-full p-2">
+                            <i className="fas fa-robot text-white w-6 h-4"></i>
+                        </div>
+                        <div className="ml-2">
+                            <p className="bg-green-500 text-sm text-start text-white p-2 rounded-lg inline-block">{val.message}</p>
+                            <p className="text-xs text-start text-gray-400 mt-1">{val.ts.toLocaleString()}</p>
+                        </div>
+                    </div>
+                  </> : <>
+                    <div className="flex items-end mb-4 justify-end">
+                        <div className="mr-2">
+                            <p className="bg-white text-sm text-start p-2 rounded-lg inline-block">{val.message}</p>
+                            <p className="text-xs text-end text-gray-400 mt-1">{val.ts.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-gray-500 rounded-full p-2">
+                            <i className="fas fa-user text-white w-6 h-4"></i>
+                        </div>
+                    </div>
+                  </>}
+                </div>
+              ))}
             </div>
 
             {/* <hr className='my-2' />
